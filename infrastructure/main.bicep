@@ -1,20 +1,13 @@
-/// <summary>
-/// Módulo Bicep para provisionar a infraestrutura principal da ApexFood API.
-/// Inclui o Plano de Serviço, o App Service e o Application Insights.
-/// </summary>
-
-// ==================================================================
-// PARÂMETROS DE ENTRADA
-// ==================================================================
+// infrastructure/main.bicep
 
 /// <summary>
 /// Parâmetro para o nome base do projeto, usado para nomear todos os recursos.
 /// </summary>
 @description('The base name for all resources.')
-param projectName string = 'apexfood'
+param projectName string
 
 /// <summary>
-/// Parâmetro para a localização dos recursos no Azure. O padrão é a localização do Resource Group.
+/// Parâmetro para a localização dos recursos no Azure.
 /// </summary>
 @description('The Azure region where the resources will be deployed.')
 param location string = resourceGroup().location
@@ -25,35 +18,25 @@ param location string = resourceGroup().location
 @description('The SKU for the App Service Plan.')
 param appServicePlanSku string = 'F1'
 
-// ==================================================================
-// VARIÁVEIS
-// ==================================================================
-
 // Variáveis para construir os nomes dos recursos de forma padronizada.
+// CORRIGIDO: Nomes baseados diretamente no projectName para consistência.
 var appServicePlanName = 'plan-${projectName}'
-var appServiceName = 'app-${projectName}'
 var appInsightsName = 'appi-${projectName}'
 
-// ==================================================================
-// RECURSOS
-// ==================================================================
-
 // Recurso: Plano de Serviço do Azure
-// Define a capacidade computacional (CPU/memória) para nossa aplicação.
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: appServicePlanName
   location: location
   sku: {
     name: appServicePlanSku
   }
-  kind: 'linux' // Vamos usar Linux, que é mais econômico e o padrão para .NET.
+  kind: 'linux'
   properties: {
-    reserved: true // Necessário para Linux SKUs.
+    reserved: true
   }
 }
 
 // Recurso: Application Insights
-// Coleta telemetria, logs e monitora a performance da nossa API.
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
@@ -64,33 +47,28 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 // Recurso: App Service
-// É o serviço que efetivamente hospedará e executará nossa API .NET.
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
-  name: appServiceName
+  // CORRIGIDO: Usa o projectName diretamente, sem adicionar prefixos.
+  name: projectName
   location: location
   kind: 'app'
   properties: {
-    serverFarmId: appServicePlan.id // Associa o App Service ao Plano de Serviço.
-    httpsOnly: true // Força o uso de HTTPS. Esta foi a linha corrigida.
+    serverFarmId: appServicePlan.id
+    httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|8.0' // Especifica o runtime da nossa aplicação.
+      linuxFxVersion: 'DOTNETCORE|8.0'
       appSettings: [
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString // Conecta a API ao App Insights.
+          value: appInsights.properties.ConnectionString
         }
       ]
     }
   }
 }
 
-// ==================================================================
-// SAÍDAS (OUTPUTS)
-// ==================================================================
-
 /// <summary>
 /// Saída (Output): O nome do host do App Service criado.
-/// O pipeline de CD usará essa informação para saber onde implantar a aplicação.
 /// </summary>
 @description('The hostname of the deployed App Service.')
 output appServiceHostName string = appService.properties.defaultHostName
