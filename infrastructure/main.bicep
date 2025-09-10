@@ -62,6 +62,10 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
+            {
+              name: 'WEBSITES_PORT'
+              value: '8080'
+            }
       ]
     }
   }
