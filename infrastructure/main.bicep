@@ -1,4 +1,11 @@
-// infrastructure/main.bicep
+/// <summary>
+/// Módulo Bicep para provisionar a infraestrutura principal da ApexFood API.
+/// Inclui o Plano de Serviço, o App Service e o Application Insights.
+/// </summary>
+
+// ==================================================================
+// PARÂMETROS DE ENTRADA
+// ==================================================================
 
 /// <summary>
 /// Parâmetro para o nome base do projeto, usado para nomear todos os recursos.
@@ -7,7 +14,7 @@
 param projectName string = 'apexfood'
 
 /// <summary>
-/// Parâmetro para a localização dos recursos no Azure.
+/// Parâmetro para a localização dos recursos no Azure. O padrão é a localização do Resource Group.
 /// </summary>
 @description('The Azure region where the resources will be deployed.')
 param location string = resourceGroup().location
@@ -18,10 +25,18 @@ param location string = resourceGroup().location
 @description('The SKU for the App Service Plan.')
 param appServicePlanSku string = 'F1'
 
+// ==================================================================
+// VARIÁVEIS
+// ==================================================================
+
 // Variáveis para construir os nomes dos recursos de forma padronizada.
 var appServicePlanName = 'plan-${projectName}'
 var appServiceName = 'app-${projectName}'
 var appInsightsName = 'appi-${projectName}'
+
+// ==================================================================
+// RECURSOS
+// ==================================================================
 
 // Recurso: Plano de Serviço do Azure
 // Define a capacidade computacional (CPU/memória) para nossa aplicação.
@@ -56,7 +71,7 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
   kind: 'app'
   properties: {
     serverFarmId: appServicePlan.id // Associa o App Service ao Plano de Serviço.
-    https:Only: true // Força o uso de HTTPS.
+    httpsOnly: true // Força o uso de HTTPS. Esta foi a linha corrigida.
     siteConfig: {
       linuxFxVersion: 'DOTNETCORE|8.0' // Especifica o runtime da nossa aplicação.
       appSettings: [
@@ -68,6 +83,10 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
     }
   }
 }
+
+// ==================================================================
+// SAÍDAS (OUTPUTS)
+// ==================================================================
 
 /// <summary>
 /// Saída (Output): O nome do host do App Service criado.
