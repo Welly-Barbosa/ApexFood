@@ -1,0 +1,104 @@
+# .github/workflows/main-pipeline.yml
+
+name: ApexFood CI/CD - Main Pipeline
+
+# Gatilhos: executa em push e pull requests para a branch main.
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Variáveis de ambiente globais para o pipeline.
+env:
+  AZURE_RESOURCE_GROUP_NAME: rg-apexfood-dev   # Nome do Resource Group
+  AZURE_LOCATION: "Brazil South"               # Localização dos recursos no Azure
+  AZURE_WEBAPP_NAME: app-apexfood-dev          # Nome único para o App Service
+
+jobs:
+  #------------------------------------------------
+  # Job 1: Construir, Testar e Empacotar a Aplicação
+  #------------------------------------------------
+  build_and_test:
+    name: Build, Test and Package
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal
+
+    # Passo novo: Publica a aplicação, gerando os arquivos prontos para deploy.
+    - name: Publish application
+      run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
+
+    # Passo novo: Carrega o pacote da aplicação como um "artefato".
+    # Isso permite que outros jobs (como o de deploy) façam o download desses arquivos.
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
+
+  #------------------------------------------------
+  # Job 2: Provisionar Infraestrutura e Fazer Deploy
+  #------------------------------------------------
+  deploy:
+    name: Provision and Deploy to Azure
+    runs-on: ubuntu-latest
+    
+    # Dependência: Este job só começa se 'build_and_test' for concluído com sucesso.
+    needs: build_and_test
+    
+    # Condição: Este job SÓ EXECUTA em um PUSH para a branch 'main'. Ele será pulado em Pull Requests.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    # Passo 1: Fazer o download do artefato gerado no job anterior.
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
+
+    # Passo 2: Fazer login no Azure usando a credencial que armazenamos no GitHub Secrets.
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    # Passo 3: Garantir que o Resource Group existe.
+    - name: Create Resource Group
+      uses: azure/cli@v1
+      with:
+        inlineScript: |
+          az group create --name ${{ env.AZURE_RESOURCE_GROUP_NAME }} --location "${{ env.AZURE_LOCATION }}"
+    
+    # Passo 4: Provisionar/Atualizar a infraestrutura usando nosso arquivo Bicep.
+    - name: Deploy Bicep template
+      uses: azure/arm-deploy@v1
+      with:
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }} # O ID da assinatura pode ser obtido do secret também
+        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
+        template: ./infrastructure/main.bicep
+        parameters: 'projectName=${{ env.AZURE_WEBAPP_NAME }}' # Passa parâmetros para o Bicep
+
+    # Passo 5: Fazer o deploy da aplicação para o Azure App Service.
+    - name: Deploy to App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: './publish'
