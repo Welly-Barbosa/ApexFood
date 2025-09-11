@@ -15,18 +15,40 @@ jobs:
   build_and_test:
     name: Build, Test and Package
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
-      - name: Restore
-        run: dotnet restore
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
-      - name: Test
-        run: dotnet test --no-build --verbosity normal
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal
+
+    # ==================================================================
+    # PASSO CORRIGIDO: Garante que o projeto correto seja publicado.
+    # Note o caminho corrigido para 'ApexFood.Api/ApexFood.Api.csproj'
+    # ==================================================================
+    - name: Publish application
+      run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
+
+    # ==================================================================
+    # PASSO CORRIGIDO: Garante que o artefato seja carregado com o nome correto.
+    # ==================================================================
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: apexfood-api-package # <-- NOME EXATO E CORRETO
+        path: ./publish
 
   deploy:
     name: Provision and Deploy to Azure
