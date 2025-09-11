@@ -1,5 +1,3 @@
-# .github/workflows/main-pipeline.yml
-
 name: ApexFood CI/CD - Main Pipeline
 
 on:
@@ -13,72 +11,66 @@ env:
   AZURE_LOCATION: "Brazil South"
   AZURE_WEBAPP_NAME: app-apexfood-dev
 
-# Nível Raiz: Define o início da seção de jobs.
 jobs:
-  # Nível de Job: O primeiro job, 'build_and_test', está indentado sob 'jobs'.
   build_and_test:
     name: Build, Test and Package
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
 
-      - name: Run tests
-        run: dotnet test --no-build --verbosity normal
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal
 
-      - name: Publish application
-        run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
+    - name: Publish application
+      run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: apexfood-api-package
-          path: ./publish
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
 
-  # Nível de Job: O segundo job, 'deploy', está no mesmo nível de indentação que 'build_and_test'.
   deploy:
-  name: Provision and Deploy to Azure
-  runs-on: ubuntu-latest
-  needs: build_and_test
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Provision and Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
 
-  - name: Download artifact
-    uses: actions/download-artifact@v4
-    with:
-      name: apexfood-api-package
-      path: ./publish
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-  - name: Login to Azure
-    uses: azure/login@v1
-    with:
-      creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-  - name: Deploy Bicep template
-    uses: azure/arm-deploy@v1
-    with:
-      resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
-      template: ./infrastructure/main.bicep
-      # ==================================================================
-      # SEÇÃO CORRIGIDA: Parâmetros passados como um bloco multi-linha.
-      # Garante que a formatação e a passagem de segredos sejam corretas.
-      # ==================================================================
-      parameters: |
-        projectName=${{ env.AZURE_WEBAPP_NAME }}
-        sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD  }}
-        adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
-        adAdminSid='${{ secrets.AD_ADMIN_SID }}'
+    - name: Deploy Bicep template
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
+        template: ./infrastructure/main.bicep
+        parameters: |
+          projectName=${{ env.AZURE_WEBAPP_NAME }}
+          sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+          adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
+          adAdminSid='${{ secrets.AD_ADMIN_SID }}'
