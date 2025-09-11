@@ -78,13 +78,10 @@ jobs:
     # ==================================================================
     - name: 'Pre-flight Secrets Check'
       run: |
-        echo "SQL_ADMIN_PASSWORD length: ${#SQL_ADMIN_PASSWORD}"
-        echo "AD_ADMIN_LOGIN length: ${#AD_ADMIN_LOGIN}"
-        echo "AD_ADMIN_SID length: ${#AD_ADMIN_SID}"
-      env:
-        SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
-        AD_ADMIN_LOGIN: ${{ secrets.AD_ADMIN_LOGIN }}
-        AD_ADMIN_SID: ${{ secrets.AD_ADMIN_SID }}
+        if [ -z "${{ secrets.SQL_ADMIN_PASSWORD }}" ]; then echo "ERRO: O segredo SQL_ADMIN_PASSWORD está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_LOGIN }}" ]; then echo "ERRO: O segredo AD_ADMIN_LOGIN está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_SID }}" ]; then echo "ERRO: O segredo AD_ADMIN_SID está faltando ou vazio."; exit 1; fi
+        echo "Verificação de segredos concluída com sucesso."
 
     - name: Login to Azure
       uses: azure/login@v1
