@@ -55,6 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_and_test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -70,6 +71,18 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
+    # ==================================================================
+    # PASSO DE DIAGNÓSTICO: Verifica se os segredos estão acessíveis.
+    # Este passo falhará o pipeline imediatamente com uma mensagem clara se um
+    # segredo estiver faltando, provando a causa raiz.
+    # ==================================================================
+    - name: 'Pre-flight Secrets Check'
+      run: |
+        if [ -z "${{ secrets.SQL_ADMIN_PASSWORD }}" ]; then echo "ERRO: O segredo SQL_ADMIN_PASSWORD está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_LOGIN }}" ]; then echo "ERRO: O segredo AD_ADMIN_LOGIN está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_SID }}" ]; then echo "ERRO: O segredo AD_ADMIN_SID está faltando ou vazio."; exit 1; fi
+        echo "Verificação de segredos concluída com sucesso."
+
     - name: Login to Azure
       uses: azure/login@v1
       with:
@@ -80,9 +93,12 @@ jobs:
       with:
         resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
         template: ./infrastructure/main.bicep
+        # ==================================================================
+        # SEÇÃO CORRIGIDA: Usa os nomes de segredos padronizados.
+        # ==================================================================
         parameters: |
           projectName=${{ env.AZURE_WEBAPP_NAME }}
-          sqlAdminPassword=${{ secrets.AZURE_SQL_PASSWORD }}
+          sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
           adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
           adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
