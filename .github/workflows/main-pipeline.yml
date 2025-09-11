@@ -44,9 +44,6 @@ deploy:
       name: apexfood-api-package
       path: ./publish
 
-  # ==================================================================
-  # PASSO CORRIGIDO: Garante que o SDK do .NET esteja disponível no runner.
-  # ==================================================================
   - name: Setup .NET SDK
     uses: actions/setup-dotnet@v4
     with:
@@ -68,9 +65,6 @@ deploy:
         adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
         adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
-  # ==================================================================
-  # PASSO CORRIGIDO: Executa a migração do Banco de Dados de forma robusta.
-  # ==================================================================
   - name: Update Database
     run: |
       dotnet tool install --global dotnet-ef
