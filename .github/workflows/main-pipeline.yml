@@ -28,53 +28,52 @@ jobs:
       - name: Test
         run: dotnet test --no-build --verbosity normal
 
-deploy:
-  name: Provision and Deploy to Azure
-  runs-on: ubuntu-latest
-  needs: build_and_test
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+  deploy:
+    name: Provision and Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build_and_test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-  - name: Download artifact
-    uses: actions/download-artifact@v4
-    with:
-      name: apexfood-api-package
-      path: ./publish
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
 
-  - name: Setup .NET SDK
-    uses: actions/setup-dotnet@v4
-    with:
-      dotnet-version: '8.0.x'
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
-  - name: Login to Azure
-    uses: azure/login@v1
-    with:
-      creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-  - name: Deploy Bicep template
-    uses: azure/arm-deploy@v1
-    with:
-      resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
-      template: ./infrastructure/main.bicep
-      parameters: |
-        projectName=${{ env.AZURE_WEBAPP_NAME }}
-        sqlAdminPassword=${{ secrets.AZURE_SQL_PASSWORD }}
-        adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
-        adAdminSid='${{ secrets.AD_ADMIN_SID }}'
+    - name: Deploy Bicep template
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
+        template: ./infrastructure/main.bicep
+        parameters: |
+          projectName=${{ env.AZURE_WEBAPP_NAME }}
+          sqlAdminPassword=${{ secrets.AZURE_SQL_PASSWORD }}
+          adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
+          adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
-  - name: Update Database
-    run: |
-      dotnet tool install --global dotnet-ef
-      export PATH="$PATH:~/.dotnet/tools"
-      dotnet ef database update \
-        --project ApexFood.Persistence \
-        --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+    - name: Update Database
+      run: |
+        dotnet tool install --global dotnet-ef
+        export PATH="$PATH:~/.dotnet/tools"
+        dotnet ef database update \
+          --project ApexFood.Persistence \
+          --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
 
-  - name: Deploy to App Service
-    uses: azure/webapps-deploy@v2
-    with:
-      app-name: ${{ env.AZURE_WEBAPP_NAME }}
-      package: './publish'
+    - name: Deploy to App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: './publish'
