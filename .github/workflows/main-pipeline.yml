@@ -78,7 +78,7 @@ jobs:
         with:
           resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
           template: ./infrastructure/main.bicep
-          parameters: 'projectName=${{ env.AZURE_WEBAPP_NAME }}'
+          parameters: 'projectName=${{ env.AZURE_WEBAPP_NAME }} sqlAdminPassword=${{ secrets.AZURE_SQL_PASSWORD }}'
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v2

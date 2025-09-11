@@ -1,29 +1,28 @@
 // infrastructure/main.bicep
 
-/// <summary>
-/// Parâmetro para o nome base do projeto, usado para nomear todos os recursos.
-/// </summary>
-@description('The base name for all resources.')
-param projectName string
+@description('O nome base para todos os recursos.')
+param projectName string = 'apexfood'
 
-/// <summary>
-/// Parâmetro para a localização dos recursos no Azure.
-/// </summary>
-@description('The Azure region where the resources will be deployed.')
+@description('A região do Azure onde os recursos serão implantados.')
 param location string = resourceGroup().location
 
-/// <summary>
-/// Parâmetro para o SKU do Plano de Serviço (ex: F1 para Free, B1 para Basic).
-/// </summary>
-@description('The SKU for the App Service Plan.')
+@description('O SKU do Plano de Serviço (ex: F1 para Free, B1 para Basic).')
 param appServicePlanSku string = 'F1'
 
-// Variáveis para construir os nomes dos recursos de forma padronizada.
-// CORRIGIDO: Nomes baseados diretamente no projectName para consistência.
-var appServicePlanName = 'plan-${projectName}'
-var appInsightsName = 'appi-${projectName}'
+// NOVO PARÂMETRO: A senha para o administrador do SQL Server. Será passada pelo pipeline de forma segura.
+@description('A senha do administrador do SQL Server.')
+@secure()
+param sqlAdminPassword string
 
-// Recurso: Plano de Serviço do Azure
+// --- Variáveis ---
+var appServicePlanName = 'plan-${projectName}'
+var appServiceName = 'app-${projectName}'
+var appInsightsName = 'appi-${projectName}'
+var sqlServerName = 'sql-${projectName}-${uniqueString(resourceGroup().id)}' // Garante um nome de servidor SQL globalmente único.
+var sqlDatabaseName = 'sqldb-${projectName}'
+var sqlAdminLogin = 'apexadmin'
+
+// --- Recurso: Plano de Serviço ---
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   name: appServicePlanName
   location: location
@@ -36,7 +35,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-09-01' = {
   }
 }
 
-// Recurso: Application Insights
+// --- Recurso: Application Insights ---
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   name: appInsightsName
   location: location
@@ -46,10 +45,33 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-// Recurso: App Service
+// ==================================================================
+// NOVOS RECURSOS: Servidor SQL e Banco de Dados
+// ==================================================================
+resource sqlServer 'Microsoft.Sql/servers@2022-08-01-preview' = {
+  name: sqlServerName
+  location: location
+  properties: {
+    administratorLogin: sqlAdminLogin
+    administratorLoginPassword: sqlAdminPassword
+  }
+}
+
+resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-08-01-preview' = {
+  parent: sqlServer
+  name: sqlDatabaseName
+  location: location
+  sku: {
+    name: 'Basic' // Usando um SKU básico e de baixo custo para desenvolvimento.
+    tier: 'Basic'
+    capacity: 5 // DTUs
+  }
+}
+// ==================================================================
+
+// --- Recurso: App Service (Atualizado) ---
 resource appService 'Microsoft.Web/sites@2022-09-01' = {
-  // CORRIGIDO: Usa o projectName diretamente, sem adicionar prefixos.
-  name: projectName
+  name: appServiceName
   location: location
   kind: 'app'
   properties: {
@@ -62,17 +84,25 @@ resource appService 'Microsoft.Web/sites@2022-09-01' = {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsights.properties.ConnectionString
         }
-            {
-              name: 'WEBSITES_PORT'
-              value: '8080'
-            }
+        {
+          name: 'WEBSITES_PORT'
+          value: '8080'
+        }
+        {
+          name: 'ASPNETCORE_URLS'
+          value: 'http://+:8080'
+        }
+        // ==================================================================
+        // ATUALIZAÇÃO: Adiciona a Connection String do banco de dados dinamicamente.
+        // ==================================================================
+        {
+          name: 'ConnectionStrings__DefaultConnection'
+          value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDatabase.name};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+        }
       ]
     }
   }
 }
 
-/// <summary>
-/// Saída (Output): O nome do host do App Service criado.
-/// </summary>
-@description('The hostname of the deployed App Service.')
+@description('O nome do host do App Service criado.')
 output appServiceHostName string = appService.properties.defaultHostName
