@@ -1,7 +1,9 @@
 // ApexFood.Api/Program.cs
 
+using ApexFood.Persistence.Data;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using System.Text.Json;
@@ -30,6 +32,16 @@ try
     builder.Services.AddHealthChecks()
         .AddCheck("self", () => HealthCheckResult.Healthy("A aplicação está funcional."));
 
+    // PASSO NOVO: Registra o ApexFoodDbContext no container de DI.
+    builder.Services.AddDbContext<ApexFoodDbContext>(options =>
+    {
+        // Lê a string de conexão "DefaultConnection" do arquivo appsettings.json.
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+        // Configura o DbContext para usar o SQL Server com a string de conexão obtida.
+        options.UseSqlServer(connectionString);
+    });
+
     var app = builder.Build();
 
     // ==================================================================
@@ -57,7 +69,7 @@ try
     {
         ResponseWriter = async (context, report) =>
         {
-            context.Response.ContentType = "application/json";
+            context.Response.ContentType = "application/json; charset=utf-8";
             var options = new JsonSerializerOptions { WriteIndented = true };
             var payload = new
             {
