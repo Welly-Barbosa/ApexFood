@@ -54,6 +54,14 @@ resource sqlServer 'Microsoft.Sql/servers@2022-08-01-preview' = {
   properties: {
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      principalType: 'User'
+      login: 'welly.barbosa1@gmail.com' // Seu e-mail de login do Azure AD
+      sid: '5845f6bc-2a4f-47b3-b13e-4a06a521339c'         // O Object ID que você copiou
+      tenantId: 'welly.barbosa1_gmail.com#EXT#@wellybarbosa1gmail.onmicrosoft.com'     // O Tenant ID que você copiou
+      azureADOnlyAuthentication: false // Permite tanto login SQL quanto AD
+    }
   }
 }
 
