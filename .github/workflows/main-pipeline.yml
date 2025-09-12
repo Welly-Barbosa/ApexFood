@@ -93,7 +93,7 @@ jobs:
       with:
         resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
         template: ./infrastructure/main.bicep
-        # ==================================================================
+        #  ==================================================================
         # SEÇÃO CORRIGIDA: Usa os nomes de segredos padronizados.
         # ==================================================================
         parameters: 'projectName=${{ env.AZURE_WEBAPP_NAME }} sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} adAdminLogin="${{ secrets.AD_ADMIN_LOGIN }}" adAdminSid="${{ secrets.AD_ADMIN_SID }}"'
