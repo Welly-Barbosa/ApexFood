@@ -1,5 +1,7 @@
 // ApexFood.Api/Program.cs
 
+using ApexFood.Domain.Entities;
+using Microsoft.AspNetCore.Identity;
 using ApexFood.Persistence.Data;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -41,6 +43,21 @@ try
         // Configura o DbContext para usar o SQL Server com a string de conexão obtida.
         options.UseSqlServer(connectionString);
     });
+
+    // ==================================================================
+    // PASSO NOVO: Adiciona e configura os serviços do ASP.NET Core Identity.
+    // ==================================================================
+    builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
+    {
+        // Configurações de senha (exemplo, podemos ajustar depois)
+        options.Password.RequireDigit = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireLowercase = false;
+    })
+    .AddEntityFrameworkStores<ApexFoodDbContext>() // Diz ao Identity para usar nosso DbContext para persistência
+    .AddDefaultTokenProviders(); // Adiciona provedores de token para reset de senha, etc.
 
     var app = builder.Build();
 
