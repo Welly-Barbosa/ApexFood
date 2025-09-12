@@ -71,7 +71,7 @@ jobs:
       with:
         dotnet-version: '8.0.x'
 
-    # ==================================================================
+    # ===================================================================
     # PASSO DE DIAGNÓSTICO: Verifica se os segredos estão acessíveis.
     # Este passo falhará o pipeline imediatamente com uma mensagem clara se um
     # segredo estiver faltando, provando a causa raiz.
