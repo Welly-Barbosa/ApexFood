@@ -13,7 +13,6 @@ env:
   AZURE_LOCATION: "Brazil South"
   AZURE_WEBAPP_NAME: app-apexfood-dev
 
-
 jobs:
   # ==================================================================
   # JOB 1: Apenas constrói, (futuramente) roda testes de unidade e publica o artefato.
@@ -58,6 +57,20 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_and_publish # Depende do sucesso do job anterior
 
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          SA_PASSWORD: "Str0ng_Passw0rd_123!"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Str0ng_Passw0rd_123! -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -71,8 +84,6 @@ jobs:
       run: dotnet restore
 
     - name: Run Integration Tests
-      # Executamos o teste diretamente no projeto de integração.
-      # Isso é mais robusto e fornece logs melhores.
       run: dotnet test ApexFood.Api.IntegrationTests/ApexFood.Api.IntegrationTests.csproj --configuration Release --verbosity normal
 
   # ==================================================================
