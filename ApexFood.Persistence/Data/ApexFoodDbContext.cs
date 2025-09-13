@@ -1,18 +1,26 @@
 ﻿// ApexFood.Persistence/Data/ApexFoodDbContext.cs
 
+using ApexFood.Application.Common.Interfaces; 
+using ApexFood.Domain.Common; 
 using ApexFood.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
+using ApexFood.Persistence.Extensions;
 
 namespace ApexFood.Persistence.Data;
 
-public class ApexFoodDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>
+public class ApexFoodDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>, IApplicationDbContext
 {
-    public ApexFoodDbContext(DbContextOptions<ApexFoodDbContext> options)
+    private readonly ITenantResolver _tenantResolver;
+
+    public ApexFoodDbContext(
+        DbContextOptions<ApexFoodDbContext> options,
+        ITenantResolver tenantResolver) // Injetar o resolvedor
         : base(options)
     {
+        _tenantResolver = tenantResolver;
     }
 
     /// <summary>
@@ -20,9 +28,10 @@ public class ApexFoodDbContext : IdentityDbContext<User, IdentityRole<Guid>, Gui
     /// </summary>
     public DbSet<Tenant> Tenants { get; set; }
 
-    // ==================================================================
-    // DECLARAÇÕES EXPLÍCITAS PARA GARANTIR A DESCOBERTA PELA FERRAMENTA DE MIGRAÇÃO
-    // ==================================================================
+    /// <summary>
+    /// Obtém ou define o conjunto de entidades para Insumos.
+    /// </summary>
+    public DbSet<Insumo> Insumos { get; set; }
 
     /// <summary>
     /// Obtém ou define o conjunto de entidades para Users.
@@ -39,5 +48,10 @@ public class ApexFoodDbContext : IdentityDbContext<User, IdentityRole<Guid>, Gui
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // ==================================================================
+        // PASSO NOVO: Adiciona o Filtro Global de Multi-Tenancy
+        // ==================================================================
+        modelBuilder.AppendTenantQueryFilter(_tenantResolver);
     }
 }

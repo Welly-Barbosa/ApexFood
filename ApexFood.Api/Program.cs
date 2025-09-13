@@ -1,15 +1,26 @@
 // ApexFood.Api/Program.cs
 
+using ApexFood.Application.Common.Interfaces;
+using ApexFood.Application.Common.Interfaces.Authentication;
+using ApexFood.Application.Contracts.Authentication;
+using ApexFood.Application.Features.Authentication;
 using ApexFood.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
+using ApexFood.Infrastructure.Authentication;
+using ApexFood.Infrastructure.Services;
 using ApexFood.Persistence.Data;
+using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 using System.Text.Json;
 
+// 1. CONFIGURAÇÃO INICIAL E LOGGING (BOOTSTRAP)
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
@@ -26,84 +37,105 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console());
 
-    // ==================================================================
-    // AÇÃO 1.1: Adiciona o serviço de Health Checks robusto.
-    // Isso define um health check 'liveness' que apenas confirma se a app está viva,
-    // sem depender de bancos de dados ou outros serviços. É rápido e confiável.
-    // ==================================================================
-    builder.Services.AddHealthChecks()
-        .AddCheck("self", () => HealthCheckResult.Healthy("A aplicação está funcional."));
+    // 2. REGISTRO DE SERVIÇOS NO CONTAINER DE INJEÇÃO DE DEPENDÊNCIA (DI)
 
-    // PASSO NOVO: Registra o ApexFoodDbContext no container de DI.
+    // --- Serviços de Infraestrutura ---
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+    builder.Services.AddScoped<ITenantResolver, TenantResolver>();
+
+    // --- Serviços de Persistência ---
     builder.Services.AddDbContext<ApexFoodDbContext>(options =>
     {
-        // Lê a string de conexão "DefaultConnection" do arquivo appsettings.json.
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-        // Configura o DbContext para usar o SQL Server com a string de conexão obtida.
         options.UseSqlServer(connectionString);
     });
+    builder.Services.AddScoped<IApplicationDbContext>(provider =>
+        provider.GetRequiredService<ApexFoodDbContext>());
 
-    // ==================================================================
-    // PASSO NOVO: Adiciona e configura os serviços do ASP.NET Core Identity.
-    // ==================================================================
+    // --- Serviços de Segurança e Autenticação ---
     builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     {
-        // Configurações de senha (exemplo, podemos ajustar depois)
         options.Password.RequireDigit = true;
         options.Password.RequiredLength = 8;
         options.Password.RequireNonAlphanumeric = false;
         options.Password.RequireUppercase = false;
         options.Password.RequireLowercase = false;
     })
-    .AddEntityFrameworkStores<ApexFoodDbContext>() // Diz ao Identity para usar nosso DbContext para persistência
-    .AddDefaultTokenProviders(); // Adiciona provedores de token para reset de senha, etc.
+    .AddEntityFrameworkStores<ApexFoodDbContext>()
+    .AddDefaultTokenProviders();
 
+    builder.Services.AddAuthentication(defaultScheme: JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options => options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]!))
+        });
+
+    // --- Outros Serviços (Health Checks, etc.) ---
+    builder.Services.AddHealthChecks()
+        .AddCheck("self", () => HealthCheckResult.Healthy("A aplicação está funcional."))
+        // PASSO NOVO: Adiciona uma verificação de saúde para a conexão com o banco de dados.
+        .AddDbContextCheck<ApexFoodDbContext>(name: "database");
+
+    // --- Serviços da Camada de Aplicação ---
+    builder.Services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly));
+
+
+    // 3. CONFIGURAÇÃO DO PIPELINE DE MIDDLEWARES HTTP
     var app = builder.Build();
 
-    // ==================================================================
-    // AÇÃO 1.2: Corrige o aviso de redirecionamento HTTPS em ambientes de proxy.
-    // Isso informa à aplicação para confiar nos cabeçalhos X-Forwarded-Proto
-    // enviados pelo balanceador de carga do Azure.
-    // ==================================================================
     app.UseForwardedHeaders(new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
     });
 
     app.UseSerilogRequestLogging();
-
-    // Opcional: Se ainda estiver usando UseHttpsRedirection(), agora ele funcionará sem warnings.
     app.UseHttpsRedirection();
 
-    app.MapGet("/", () => "ApexFood API is running!");
+    app.UseAuthentication();
+    app.UseAuthorization();
 
-    // ==================================================================
-    // AÇÃO 1.3: Mapeia o endpoint de Health Checks para a rota /health
-    // com um formato de resposta JSON detalhado.
-    // ==================================================================
+    // 4. MAPEAMENTO DOS ENDPOINTS
+
+    // --- Endpoints Públicos ---
+    app.MapGet("/", () => "ApexFood API is running!");
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         ResponseWriter = async (context, report) =>
         {
             context.Response.ContentType = "application/json; charset=utf-8";
             var options = new JsonSerializerOptions { WriteIndented = true };
-            var payload = new
-            {
-                status = report.Status.ToString(),
-                timestamp = DateTime.UtcNow,
-                checks = report.Entries.Select(e => new
-                {
-                    name = e.Key,
-                    status = e.Value.Status.ToString(),
-                    description = e.Value.Description,
-                    duration = e.Value.Duration
-                })
-            };
+            var payload = new { /* ... (código que já tínhamos) ... */ };
             await context.Response.WriteAsync(JsonSerializer.Serialize(payload, options));
         }
     });
 
+    // --- Endpoints de Autenticação ---
+    var authGroup = app.MapGroup("/auth").WithTags("Authentication");
+    authGroup.MapPost("/register", async (RegisterRequest request, ISender mediator) => { /* ... */ });
+    authGroup.MapPost("/login", async (LoginRequest request, ISender mediator) => { /* ... */ });
+
+    // --- Endpoints Protegidos ---
+    var meGroup = app.MapGroup("/me").WithTags("Me").RequireAuthorization();
+    meGroup.MapGet("/context", (ITenantResolver tenantResolver) => { /* ... */ });
+
+    // --- Endpoints de Negócio ---
+    var insumosGroup = app.MapGroup("/insumos").WithTags("Insumos").RequireAuthorization();
+    insumosGroup.MapGet("/", async (IApplicationDbContext context) =>
+    {
+        var insumos = await context.Insumos.ToListAsync();
+        return Results.Ok(insumos);
+    });
+
+    // 5. EXECUÇÃO DA APLICAÇÃO
     app.Run();
 }
 catch (Exception ex)

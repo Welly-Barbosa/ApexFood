@@ -11,9 +11,18 @@ namespace ApexFood.Domain.Entities;
 /// </summary>
 public class User : IdentityUser<Guid>
 {
-    // Atualmente, não precisamos de propriedades personalizadas, mas esta classe
-    // nos dá a flexibilidade de adicioná-las no futuro.
-    // Por exemplo:
-    // public string? FullName { get; set; }
-    // public DateTime DateOfBirth { get; set; }
+    // ==================================================================
+    // PROPRIEDADES ADICIONADAS PARA MULTI-TENANCY
+    // ==================================================================
+
+    /// <summary>
+    /// Chave estrangeira para o Tenant ao qual este usuário pertence.
+    /// Pode ser nulo para usuários de nível de sistema (ex: super admin).
+    /// </summary>
+    public Guid? TenantId { get; set; }
+
+    /// <summary>
+    /// Propriedade de navegação para o Tenant.
+    /// </summary>
+    public virtual Tenant? Tenant { get; set; }
 }
