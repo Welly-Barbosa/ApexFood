@@ -7,38 +7,34 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.VisualStudio.TestPlatform.TestHost;
 using Testcontainers.MsSql;
 
 namespace ApexFood.Api.IntegrationTests;
 
 public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    // ==================================================================
+    // SEÇÃO CORRIGIDA: Configura o contêiner com os parâmetros obrigatórios.
+    // ==================================================================
     private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-        .WithPassword("localdev!123")
+        // 1. Fornece uma senha forte para o usuário 'sa'
+        .WithPassword("Strong_password_123!")
+        // 2. Aceita os termos de licença (EULA), que é obrigatório
+        .WithEnvironment("ACCEPT_EULA", "Y")
         .Build();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureTestServices(services =>
         {
-            // Remove a configuração do DbContext original
             services.RemoveAll(typeof(DbContextOptions<ApexFoodDbContext>));
-
-            // Adiciona uma nova configuração do DbContext que aponta para o nosso banco de dados de teste no contêiner
             services.AddDbContext<ApexFoodDbContext>(options =>
                 options.UseSqlServer(_dbContainer.GetConnectionString()));
         });
     }
 
-    public async Task InitializeAsync()
-    {
-        await _dbContainer.StartAsync();
-    }
+    public async Task InitializeAsync() => await _dbContainer.StartAsync();
 
-    public new async Task DisposeAsync()
-    {
-        await _dbContainer.StopAsync();
-    }
+    public new async Task DisposeAsync() => await _dbContainer.StopAsync();
 }
