@@ -1,4 +1,6 @@
-name: ApexFood CI - Build and Test
+# .github/workflows/main-pipeline.yml
+
+name: ApexFood CI/CD - Main Pipeline
 
 on:
   push:
@@ -6,41 +8,123 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  AZURE_RESOURCE_GROUP_NAME: rg-apexfood-dev
+  AZURE_LOCATION: "Brazil South"
+  AZURE_WEBAPP_NAME: app-apexfood-dev
+
+
 jobs:
-  build-and-test:
+  # ==================================================================
+  # JOB 1: Apenas constrói, (futuramente) roda testes de unidade e publica o artefato.
+  # ==================================================================
+  build_and_publish:  
+    name: Build and Publish
     runs-on: ubuntu-latest
 
-    services:
-      # Serviço de SQL Server para os testes
-      mssql:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          SA_PASSWORD: "Str0ng_Passw0rd_123!"
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Str0ng_Passw0rd_123! -Q 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build solution
+      run: dotnet build --configuration Release --no-restore
+
+    # (Quando tivermos testes de unidade, eles serão executados aqui)
+    # - name: Run Unit Tests
+    #   run: dotnet test --no-build --filter "TestCategory!=Integration"
+
+    - name: Publish application
+      run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
+
+  # ==================================================================
+  # JOB 2: Novo job dedicado para rodar os testes de integração.
+  # ==================================================================
+  integration_test:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    needs: build_and_publish # Depende do sucesso do job anterior
 
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Setup .NET 8
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '8.0.x'
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
+    - name: Restore dependencies
+      run: dotnet restore
 
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+    - name: Run Integration Tests
+      # Executamos o teste diretamente no projeto de integração.
+      # Isso é mais robusto e fornece logs melhores.
+      run: dotnet test ApexFood.Api.IntegrationTests/ApexFood.Api.IntegrationTests.csproj --configuration Release --verbosity normal
 
-      - name: Run unit tests
-        run: dotnet test ApexFood.UnitTests/ApexFood.UnitTests.csproj --configuration Release --no-build --verbosity normal
+  # ==================================================================
+  # JOB 3: O deploy agora depende do sucesso dos testes de integração.
+  # ==================================================================
+  deploy:
+    name: Provision and Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: integration_test # <-- MUDANÇA IMPORTANTE
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
+        
+    # (O resto dos passos de deploy continua o mesmo...)
+    - name: 'Pre-flight Secrets Check'
+      run: |
+        if [ -z "${{ secrets.SQL_ADMIN_PASSWORD }}" ]; then echo "ERRO: O segredo SQL_ADMIN_PASSWORD está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_LOGIN }}" ]; then echo "ERRO: O segredo AD_ADMIN_LOGIN está faltando ou vazio."; exit 1; fi
+        if [ -z "${{ secrets.AD_ADMIN_SID }}" ]; then echo "ERRO: O segredo AD_ADMIN_SID está faltando ou vazio."; exit 1; fi
+        echo "Verificação de segredos concluída com sucesso."
 
-      - name: Run integration tests
-        run: dotnet test ApexFood.Api.IntegrationTests/ApexFood.Api.IntegrationTests.csproj --configuration Release --no-build --verbosity normal
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy Bicep template
+      uses: azure/arm-deploy@v1
+      with:
+        resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
+        template: ./infrastructure/main.bicep
+        parameters: |
+          projectName=${{ env.AZURE_WEBAPP_NAME }}
+          sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+          adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
+          adAdminSid='${{ secrets.AD_ADMIN_SID }}'
+
+    - name: Update Database
+      run: |
+        dotnet tool install --global dotnet-ef
+        export PATH="$PATH:~/.dotnet/tools"
+        dotnet ef database update \
+          --project ApexFood.Persistence \
+          --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+
+    - name: Deploy to App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        package: './publish'
