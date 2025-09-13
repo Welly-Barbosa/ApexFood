@@ -1,3 +1,5 @@
+# .github/workflows/main-pipeline.yml
+
 name: ApexFood CI/CD - Main Pipeline
 
 on:
@@ -12,8 +14,11 @@ env:
   AZURE_WEBAPP_NAME: app-apexfood-dev
 
 jobs:
-  build_and_test:
-    name: Build, Test and Package
+  # ==================================================================
+  # JOB 1: Apenas constrói, (futuramente) roda testes de unidade e publica o artefato.
+  # ==================================================================
+  build_and_publish:
+    name: Build and Publish
     runs-on: ubuntu-latest
 
     steps:
@@ -31,51 +36,61 @@ jobs:
     - name: Build solution
       run: dotnet build --configuration Release --no-restore
 
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal
+    # (Quando tivermos testes de unidade, eles serão executados aqui)
+    # - name: Run Unit Tests
+    #   run: dotnet test --no-build --filter "TestCategory!=Integration"
 
-    # ==================================================================
-    # PASSO CORRIGIDO: Garante que o projeto correto seja publicado.
-    # Note o caminho corrigido para 'ApexFood.Api/ApexFood.Api.csproj'
-    # ==================================================================
     - name: Publish application
       run: dotnet publish ApexFood.Api/ApexFood.Api.csproj --configuration Release --output ./publish
 
-    # ==================================================================
-    # PASSO CORRIGIDO: Garante que o artefato seja carregado com o nome correto.
-    # ==================================================================
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: apexfood-api-package # <-- NOME EXATO E CORRETO
+        name: apexfood-api-package
         path: ./publish
 
-  deploy:
-    name: Provision and Deploy to Azure
+  # ==================================================================
+  # JOB 2: Novo job dedicado para rodar os testes de integração.
+  # ==================================================================
+  integration_test:
+    name: Run Integration Tests
     runs-on: ubuntu-latest
-    needs: build_and_test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build_and_publish # Depende do sucesso do job anterior
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
-    - name: Download artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: apexfood-api-package
-        path: ./publish
 
     - name: Setup .NET SDK
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
 
-    # ===================================================================
-    # PASSO DE DIAGNÓSTICO: Verifica se os segredos estão acessíveis.
-    # Este passo falhará o pipeline imediatamente com uma mensagem clara se um
-    # segredo estiver faltando, provando a causa raiz.
-    # ==================================================================
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Run Integration Tests
+      # Executamos o teste diretamente no projeto de integração.
+      # Isso é mais robusto e fornece logs melhores.
+      run: dotnet test ApexFood.Api.IntegrationTests/ApexFood.Api.IntegrationTests.csproj --configuration Release --no-build
+
+  # ==================================================================
+  # JOB 3: O deploy agora depende do sucesso dos testes de integração.
+  # ==================================================================
+  deploy:
+    name: Provision and Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: integration_test # <-- MUDANÇA IMPORTANTE
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: apexfood-api-package
+        path: ./publish
+        
+    # (O resto dos passos de deploy continua o mesmo...)
     - name: 'Pre-flight Secrets Check'
       run: |
         if [ -z "${{ secrets.SQL_ADMIN_PASSWORD }}" ]; then echo "ERRO: O segredo SQL_ADMIN_PASSWORD está faltando ou vazio."; exit 1; fi
@@ -93,10 +108,11 @@ jobs:
       with:
         resourceGroupName: ${{ env.AZURE_RESOURCE_GROUP_NAME }}
         template: ./infrastructure/main.bicep
-        #  ==================================================================
-        # SEÇÃO CORRIGIDA: Usa os nomes de segredos padronizados.
-        # ==================================================================
-        parameters: 'projectName=${{ env.AZURE_WEBAPP_NAME }} sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }} adAdminLogin="${{ secrets.AD_ADMIN_LOGIN }}" adAdminSid="${{ secrets.AD_ADMIN_SID }}"'
+        parameters: |
+          projectName=${{ env.AZURE_WEBAPP_NAME }}
+          sqlAdminPassword=${{ secrets.SQL_ADMIN_PASSWORD }}
+          adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}'
+          adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
     - name: Update Database
       run: |
