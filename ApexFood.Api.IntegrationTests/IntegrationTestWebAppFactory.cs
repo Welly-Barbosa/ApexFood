@@ -1,6 +1,7 @@
 ﻿// ApexFood.Api.IntegrationTests/IntegrationTestWebAppFactory.cs
 using ApexFood.Persistence.Data;
 using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Configurations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -13,18 +14,26 @@ namespace ApexFood.Api.IntegrationTests;
 
 public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    // ==================================================================
-    // SEÇÃO CORRIGIDA: Configura o contêiner com os parâmetros obrigatórios.
-    // ==================================================================
-    private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
-        .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-        // 1. Fornece uma senha forte para o usuário 'sa'
-        .WithPassword("Strong_password_123!")
-        // 2. Aceita os termos de licença (EULA), que é obrigatório
-        .WithEnvironment("ACCEPT_EULA", "Y")
-        .Build();
+    private readonly MsSqlContainer _dbContainer;
 
-
+    public IntegrationTestWebAppFactory()
+    {
+        // Configura o container do SQL Server com senha forte, EULA aceita e timeout maior
+        _dbContainer = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            .WithPassword("Str0ng_Passw0rd_123!")
+            .WithEnvironment("ACCEPT_EULA", "Y")
+            // Aumenta timeout de inicialização para até 2 minutos
+            .WithWaitStrategy(Wait.ForUnixContainer()
+                .UntilCommandIsCompleted(
+                    "/opt/mssql-tools/bin/sqlcmd",
+                    "-S", "localhost",
+                    "-U", "sa",
+                    "-P", "Str0ng_Passw0rd_123!",
+                    "-Q", "SELECT 1")
+                .WithStartupTimeout(TimeSpan.FromMinutes(2)))
+            .Build();
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
