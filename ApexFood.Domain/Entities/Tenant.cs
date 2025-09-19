@@ -1,6 +1,7 @@
 ﻿// ApexFood.Domain/Entities/Tenant.cs
 
 using ApexFood.Domain.Common;
+using ApexFood.Domain.Enums;
 
 namespace ApexFood.Domain.Entities;
 
@@ -21,6 +22,15 @@ public class Tenant : Entity
     /// Preenchido para tenants filhos (lojas franqueadas).
     /// </summary>
     public Guid? ParentTenantId { get; private set; }
+
+    // ==================================================================
+    // PROPRIEDADE ADICIONADA PARA GERENCIAR O PLANO DE ASSINATURA
+    // ==================================================================
+    /// <summary>
+    /// Obtém ou define o plano de assinatura ativo para este tenant.
+    /// O valor padrão é o plano Básico.
+    /// </summary>
+    public PlanoAssinatura Plano { get; private set; } = PlanoAssinatura.Basico;
 
     // Relação de navegação (opcional por enquanto, mas bom ter em mente)
     // public virtual Tenant? ParentTenant { get; private set; }
@@ -45,5 +55,12 @@ public class Tenant : Entity
         // TODO: Adicionar validações de negócio (ex: nome não pode ser nulo ou vazio).
         Name = name;
         ParentTenantId = parentTenantId;
+    }
+    /// <summary>
+    /// Método para atualizar o plano de um tenant (ex: após um upgrade).
+    /// </summary>
+    public void AtualizarPlano(PlanoAssinatura novoPlano)
+    {
+        Plano = novoPlano;
     }
 }

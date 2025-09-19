@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Persistence", "Ape
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Api.IntegrationTests", "ApexFood.Api.IntegrationTests\ApexFood.Api.IntegrationTests.csproj", "{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.PoC.CmvCalculator", "ApexFood.PoC.CmvCalculator\ApexFood.PoC.CmvCalculator.csproj", "{7B4DB258-1BBC-4094-A739-0AC3D2AC8958}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B4DB258-1BBC-4094-A739-0AC3D2AC8958}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B4DB258-1BBC-4094-A739-0AC3D2AC8958}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B4DB258-1BBC-4094-A739-0AC3D2AC8958}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B4DB258-1BBC-4094-A739-0AC3D2AC8958}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
