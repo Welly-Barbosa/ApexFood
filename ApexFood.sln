@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Api", "ApexFood.Api\ApexFood.Api.csproj", "{A1010809-1EB0-4FED-8B6D-E06E88E0DEFC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Application", "ApexFood.Application\ApexFood.Application.csproj", "{81200719-61E9-42E4-B621-D231099641B6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Domain", "ApexFood.Domain\ApexFood.Domain.csproj", "{75CA8059-FA5B-4893-8244-E3BFE5777821}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Infrastructure", "ApexFood.Infrastructure\ApexFood.Infrastructure.csproj", "{49C71495-E59C-44DD-B4BB-D285BA156B9A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Persistence", "ApexFood.Persistence\ApexFood.Persistence.csproj", "{BECCA3D0-8685-43A5-BA2B-AE60E0B3448D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApexFood.Api.IntegrationTests", "ApexFood.Api.IntegrationTests\ApexFood.Api.IntegrationTests.csproj", "{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1010809-1EB0-4FED-8B6D-E06E88E0DEFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1010809-1EB0-4FED-8B6D-E06E88E0DEFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1010809-1EB0-4FED-8B6D-E06E88E0DEFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1010809-1EB0-4FED-8B6D-E06E88E0DEFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81200719-61E9-42E4-B621-D231099641B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81200719-61E9-42E4-B621-D231099641B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81200719-61E9-42E4-B621-D231099641B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81200719-61E9-42E4-B621-D231099641B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75CA8059-FA5B-4893-8244-E3BFE5777821}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75CA8059-FA5B-4893-8244-E3BFE5777821}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75CA8059-FA5B-4893-8244-E3BFE5777821}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75CA8059-FA5B-4893-8244-E3BFE5777821}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49C71495-E59C-44DD-B4BB-D285BA156B9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49C71495-E59C-44DD-B4BB-D285BA156B9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49C71495-E59C-44DD-B4BB-D285BA156B9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49C71495-E59C-44DD-B4BB-D285BA156B9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BECCA3D0-8685-43A5-BA2B-AE60E0B3448D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BECCA3D0-8685-43A5-BA2B-AE60E0B3448D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BECCA3D0-8685-43A5-BA2B-AE60E0B3448D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BECCA3D0-8685-43A5-BA2B-AE60E0B3448D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEFD84CC-56ED-49F0-8167-0C6731CA94C0}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B759E085-BA7C-42B7-B0A7-534632FFB32D}
+	EndGlobalSection
+EndGlobal
