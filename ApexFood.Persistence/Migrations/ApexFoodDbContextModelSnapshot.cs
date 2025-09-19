@@ -28,12 +28,25 @@ namespace ApexFood.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("Gtin")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsAtivo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Nome")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Sku")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UnidadeMedidaBase")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

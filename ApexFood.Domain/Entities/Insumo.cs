@@ -5,18 +5,26 @@ namespace ApexFood.Domain.Entities;
 
 public class Insumo : Entity, ITenantEntity
 {
-    public string Name { get; private set; }
     public Guid TenantId { get; set; }
+    public string Nome { get; private set; }
+    public string UnidadeMedidaBase { get; private set; }
+    public string? Gtin { get; private set; } // Código de Barras
+    public string? Sku { get; private set; }  // Código Interno
+    public bool IsAtivo { get; private set; } = true;
 
-    // Construtor privado para o EF Core.
-    // O #pragma desabilita o aviso CS8618 especificamente para esta linha.
-#pragma warning disable CS8618
+#pragma warning disable CS8618 // Construtor para o EF Core
     private Insumo() { }
 #pragma warning restore CS8618
 
-    public Insumo(string name, Guid tenantId) : base()
+    public Insumo(Guid tenantId, string nome, string unidadeMedidaBase, string? gtin = null, string? sku = null) : base()
     {
-        Name = name;
         TenantId = tenantId;
+        Nome = nome;
+        UnidadeMedidaBase = unidadeMedidaBase;
+        Gtin = gtin;
+        Sku = sku;
     }
+
+    public void Desativar() => IsAtivo = false;
+    public void Ativar() => IsAtivo = true;
 }

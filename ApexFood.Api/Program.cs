@@ -2,12 +2,18 @@
 
 using ApexFood.Application.Common.Interfaces;
 using ApexFood.Application.Common.Interfaces.Authentication;
+using ApexFood.Application.Common.Interfaces.Persistence;
 using ApexFood.Application.Contracts.Authentication;
 using ApexFood.Application.Features.Authentication;
+using ApexFood.Application.Features.Insumos;
+using ApexFood.Application.Common.Behaviors;
+using ApexFood.Api.Contracts.Insumos;
 using ApexFood.Domain.Entities;
 using ApexFood.Infrastructure.Authentication;
 using ApexFood.Infrastructure.Services;
 using ApexFood.Persistence.Data;
+using ApexFood.Persistence.Repositories;
+using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -17,8 +23,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+
 
 // Configuração do Bootstrap Logger
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
@@ -46,6 +54,10 @@ try
     builder.Services.AddDbContext<ApexFoodDbContext>();
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<ApexFoodDbContext>());
+
+    // PASSO NOVO: Registra os repositórios
+    builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+    builder.Services.AddScoped<IInsumoRepository, InsumoRepository>();
 
     // --- Serviços de Segurança e Autenticação ---
 
@@ -86,6 +98,19 @@ try
     // --- Serviços da Camada de Aplicação ---
     builder.Services.AddMediatR(cfg =>
         cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly));
+
+    // --- Serviços da Camada de Aplicação ---
+    builder.Services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssembly(typeof(CriarInsumoCommand).Assembly));
+
+    // Adiciona o ValidationBehavior ao pipeline do MediatR
+    builder.Services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+    // Registra os validadores do FluentValidation
+    builder.Services.AddValidatorsFromAssembly(typeof(CriarInsumoCommandValidator).Assembly);
+
+    // --- Registra os validadores do FluentValidation
+    builder.Services.AddValidatorsFromAssembly(typeof(CriarInsumoCommand).Assembly);
 
     // --- Outros Serviços ---
     builder.Services.AddHealthChecks()
@@ -128,6 +153,33 @@ try
         }
     });
 
+    // ==================================================================
+    // PASSO NOVO: Cria o endpoint de Insumos
+    // ==================================================================
+    var insumosGroup = app.MapGroup("/insumos").WithTags("Insumos").RequireAuthorization();
+
+    insumosGroup.MapPost("/", async (CriarInsumoRequest request, ISender mediator) =>
+    {
+        var command = new CriarInsumoCommand(
+            request.Nome,
+            request.UnidadeMedidaBase,
+            request.Gtin,
+            request.Sku);
+
+        var insumoId = await mediator.Send(command);
+
+        return Results.Created($"/insumos/{insumoId}", new { Id = insumoId });
+    })
+    .Produces<object>(StatusCodes.Status201Created)
+    .Produces(StatusCodes.Status400BadRequest);
+
+    var insumosGroup1 = app.MapGroup("/insumos").WithTags("Insumos").RequireAuthorization();
+    insumosGroup1.MapGet("/", async (IApplicationDbContext context) =>
+    {
+        var insumos = await context.Insumos.ToListAsync();
+        return Results.Ok(insumos);
+    });
+
     // --- Endpoints de Autenticação ---
     var authGroup = app.MapGroup("/auth").WithTags("Authentication");
 
@@ -160,12 +212,7 @@ try
         return Results.Ok(new { TenantId = tenantId });
     });
 
-    var insumosGroup = app.MapGroup("/insumos").WithTags("Insumos").RequireAuthorization();
-    insumosGroup.MapGet("/", async (IApplicationDbContext context) =>
-    {
-        var insumos = await context.Insumos.ToListAsync();
-        return Results.Ok(insumos);
-    });
+
 
     // 5. Execução da Aplicação
     app.Run();
