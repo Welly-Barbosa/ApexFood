@@ -31,6 +31,7 @@ public class ApexFoodDbContext : IdentityDbContext<User, IdentityRole<Guid>, Gui
 
     public DbSet<Tenant> Tenants { get; set; }
     public DbSet<Insumo> Insumos { get; set; }
+    public DbSet<ProdutoModelo> ProdutosModelo { get; set; }
     public override DbSet<User> Users { get; set; }
     public override DbSet<IdentityRole<Guid>> Roles { get; set; }
 
