@@ -51,7 +51,15 @@ try
     builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
     // --- Serviços de Persistência ---
-    builder.Services.AddDbContext<ApexFoodDbContext>();
+    // builder.Services.AddDbContext<ApexFoodDbContext>(); // Linha comentada no PASSO antigo
+    builder.Services.AddDbContext<ApexFoodDbContext>(options =>
+    {
+        // Lê a string de conexão do appsettings.json
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+        // Configura o DbContext para usar o SQL Server com a string de conexão.
+        options.UseSqlServer(connectionString);
+    });
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<ApexFoodDbContext>());
 
