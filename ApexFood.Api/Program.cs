@@ -87,7 +87,10 @@ try
 
     // --- Serviços da Camada de Aplicação ---
     builder.Services.AddMediatR(cfg =>
-        cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly));
+       cfg.RegisterServicesFromAssemblies(
+           typeof(Program).Assembly, // Escaneia o projeto da API
+           typeof(RegisterCommand).Assembly // Escaneia o projeto da Aplicação
+       ));
 
     // --- Outros Serviços ---
     builder.Services.AddHealthChecks()
