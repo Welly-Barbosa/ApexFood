@@ -2,12 +2,14 @@
 
 using ApexFood.Application.Common.Interfaces;
 using ApexFood.Application.Common.Interfaces.Authentication;
+using ApexFood.Application.Common.Interfaces.Persistence;
 using ApexFood.Application.Contracts.Authentication;
 using ApexFood.Application.Features.Authentication;
 using ApexFood.Domain.Entities;
 using ApexFood.Infrastructure.Authentication;
 using ApexFood.Infrastructure.Services;
 using ApexFood.Persistence.Data;
+using ApexFood.Persistence.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -49,6 +51,12 @@ try
     });
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<ApexFoodDbContext>());
+
+    // ==================================================================
+    // SEÇÃO ADICIONADA: Registra os Repositórios.
+    // ==================================================================
+    builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+    builder.Services.AddScoped<IInsumoRepository, InsumoRepository>();
 
     // --- Serviços de Segurança e Autenticação ---
     builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
