@@ -45,6 +45,10 @@ public class Tenant : Entity
     {
     }
 
+    public Tenant(string name, Guid id) : base(id)
+    {
+        Name = name;
+    }
     /// <summary>
     /// Cria uma nova instância de um Tenant.
     /// </summary>
