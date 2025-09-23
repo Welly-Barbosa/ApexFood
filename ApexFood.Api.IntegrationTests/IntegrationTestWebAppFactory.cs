@@ -1,4 +1,5 @@
 ﻿// ApexFood.Api.IntegrationTests/IntegrationTestWebAppFactory.cs
+
 using ApexFood.Persistence.Data;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
@@ -7,7 +8,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Testcontainers.MsSql;
 
 namespace ApexFood.Api.IntegrationTests;
@@ -22,29 +22,19 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsy
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Define o ambiente para "Testing" para que possamos, se necessário,
-        // ter configurações diferentes para testes no futuro.
+        // A linha mais importante: diz ao host da aplicação para usar o ambiente "Testing".
+        // Isso ativará a lógica condicional que acabamos de colocar no Program.cs.
         builder.UseEnvironment("Testing");
 
         builder.ConfigureTestServices(services =>
         {
-            // Remove a configuração do DbContext original
+            // A factory agora tem uma única responsabilidade: substituir a conexão do banco de dados.
             services.RemoveAll(typeof(DbContextOptions<ApexFoodDbContext>));
-
-            // Adiciona uma nova configuração do DbContext que aponta para o banco de teste
             services.AddDbContext<ApexFoodDbContext>(options =>
                 options.UseSqlServer(_dbContainer.GetConnectionString()));
         });
 
-        // ==================================================================
-        // PASSO CORRIGIDO: Sobrescreve a configuração de logging para os testes.
-        // Isso impede que o Serilog seja inicializado e cause o erro "logger is frozen".
-        // ==================================================================
-        builder.ConfigureLogging(logging =>
-        {
-            logging.ClearProviders(); // Remove o Serilog e outros providers
-            logging.AddConsole();     // Adiciona um logger de console simples para vermos os logs do teste
-        });
+        // A seção ConfigureLogging foi removida, pois não é mais necessária.
     }
 
     public async Task InitializeAsync() => await _dbContainer.StartAsync();

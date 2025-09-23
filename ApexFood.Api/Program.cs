@@ -1,10 +1,11 @@
 // ApexFood.Api/Program.cs
 
+using ApexFood.Api.Contracts.Insumos;
 using ApexFood.Application.Common.Interfaces;
 using ApexFood.Application.Common.Interfaces.Authentication;
 using ApexFood.Application.Common.Interfaces.Persistence;
-using ApexFood.Application.Contracts.Authentication;
 using ApexFood.Application.Features.Authentication;
+using ApexFood.Application.Features.Insumos;
 using ApexFood.Domain.Entities;
 using ApexFood.Infrastructure.Authentication;
 using ApexFood.Infrastructure.Services;
@@ -12,15 +13,11 @@ using ApexFood.Persistence.Data;
 using ApexFood.Persistence.Repositories;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
-using System.Text.Json;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
 Log.Information("Starting up ApexFood.Api");
@@ -40,31 +37,19 @@ try
     builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
     builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
-    // --- Serviços de Persistência (SEÇÃO CORRIGIDA) ---
-    builder.Services.AddDbContext<ApexFoodDbContext>(options =>
-    {
-        // Lê a string de conexão do appsettings.json
-        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-        // Configura o DbContext para usar o SQL Server com a string de conexão.
-        options.UseSqlServer(connectionString);
-    });
+    // --- Serviços de Persistência ---
+    builder.Services.AddDbContext<ApexFoodDbContext>();
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<ApexFoodDbContext>());
 
-    // ==================================================================
-    // SEÇÃO ADICIONADA: Registra os Repositórios.
-    // ==================================================================
+    // Registra os Repositórios Genérico e Específicos
     builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
     builder.Services.AddScoped<IInsumoRepository, InsumoRepository>();
 
     // --- Serviços de Segurança e Autenticação ---
-    builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
-    {
-        // Opções de configuração do Identity
-    })
-    .AddEntityFrameworkStores<ApexFoodDbContext>()
-    .AddDefaultTokenProviders();
+    builder.Services.AddIdentity<User, IdentityRole<Guid>>()
+        .AddEntityFrameworkStores<ApexFoodDbContext>()
+        .AddDefaultTokenProviders();
 
     builder.Services.AddAuthentication(options =>
     {
@@ -87,19 +72,48 @@ try
 
     // --- Serviços da Camada de Aplicação ---
     builder.Services.AddMediatR(cfg =>
-       cfg.RegisterServicesFromAssemblies(
-           typeof(Program).Assembly, // Escaneia o projeto da API
-           typeof(RegisterCommand).Assembly // Escaneia o projeto da Aplicação
-       ));
+       cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly));
 
     // --- Outros Serviços ---
-    builder.Services.AddHealthChecks()
-        .AddCheck("self", () => HealthCheckResult.Healthy("A aplicação está funcional."));
+    builder.Services.AddHealthChecks();
 
     // 3. Configuração do Pipeline de Middlewares HTTP
     var app = builder.Build();
 
-    // ... (O restante do arquivo continua o mesmo)
+    app.UseSerilogRequestLogging();
+    app.UseHttpsRedirection();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    // 4. Mapeamento dos Endpoints
+    var authGroup = app.MapGroup("/auth").WithTags("Authentication");
+    // (Endpoints de registro e login aqui)
+
+    // ==================================================================
+    // ENDPOINTS DE INSUMOS (Faltando no seu arquivo)
+    // ==================================================================
+    var insumosGroup = app.MapGroup("/insumos").WithTags("Insumos").RequireAuthorization();
+
+    insumosGroup.MapPost("/", async (CriarInsumoRequest request, ISender mediator) =>
+    {
+        // Correção 1: Passa todos os parâmetros do request para o comando.
+        var command = new CriarInsumoCommand(
+            request.Nome,
+            request.UnidadeMedidaBase,
+            request.Gtin,
+            request.Sku);
+
+        var insumoId = await mediator.Send(command);
+
+        // Correção 2: Usa o resultado (que é um Guid) diretamente.
+        return Results.Created($"/insumos/{insumoId}", new { Id = insumoId });
+    });
+
+    insumosGroup.MapGet("/", async (IApplicationDbContext context) =>
+    {
+        var insumos = await context.Insumos.ToListAsync();
+        return Results.Ok(insumos);
+    });
 
     // 5. Execução
     app.Run();
@@ -113,5 +127,4 @@ finally
     Log.CloseAndFlush();
 }
 
-// Expõe a classe Program para a WebApplicationFactory dos testes de integração
 public partial class Program { }
