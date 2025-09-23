@@ -36,11 +36,11 @@ public class InsumosTests : IClassFixture<IntegrationTestWebAppFactory>
 
         await dbContext.Database.MigrateAsync();
 
-        var tenant = new Tenant("Tenant de Teste Insumo");
-        dbContext.Tenants.Add(tenant);
-        await dbContext.SaveChangesAsync();
+        var tenantId = IntegrationTestWebAppFactory.TestTenantId;
+        //dbContext.Tenants.Add(tenant);
+        //await dbContext.SaveChangesAsync();
 
-        var user = new User { UserName = "user.insumo@test.com", Email = "user.insumo@test.com", TenantId = tenant.Id };
+        var user = new User { UserName = "user.insumo@test.com", Email = "user.insumo@test.com", TenantId = tenantId };
         await userManager.CreateAsync(user, "Password123!");
 
         var token = tokenGenerator.GenerateToken(user);
@@ -65,6 +65,6 @@ public class InsumosTests : IClassFixture<IntegrationTestWebAppFactory>
         insumoSalvo.Gtin.Should().Be(requestDto.Gtin);
 
         // A asserção mais importante: valida se o insumo foi associado ao tenant correto do usuário logado!
-        insumoSalvo.TenantId.Should().Be(tenant.Id);
+        insumoSalvo.TenantId.Should().Be(tenantId);
     }
 }

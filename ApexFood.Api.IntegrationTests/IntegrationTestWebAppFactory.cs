@@ -1,5 +1,6 @@
 ﻿// ApexFood.Api.IntegrationTests/IntegrationTestWebAppFactory.cs
 
+using ApexFood.Application.Common.Interfaces;
 using ApexFood.Persistence.Data;
 using DotNet.Testcontainers.Builders;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +15,8 @@ namespace ApexFood.Api.IntegrationTests;
 
 public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    public static readonly Guid TestTenantId = new("00000000-0000-0000-0000-00000000000A");
+
     private readonly MsSqlContainer _dbContainer = new MsSqlBuilder()
         .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
         .WithPassword("Strong_password_123!")
@@ -32,6 +35,9 @@ public class IntegrationTestWebAppFactory : WebApplicationFactory<Program>, IAsy
             services.RemoveAll(typeof(DbContextOptions<ApexFoodDbContext>));
             services.AddDbContext<ApexFoodDbContext>(options =>
                 options.UseSqlServer(_dbContainer.GetConnectionString()));
+
+            services.RemoveAll(typeof(ITenantResolver));
+            services.AddScoped<ITenantResolver>(_ => new FakeTenantResolver(TestTenantId));
         });
 
         // A seção ConfigureLogging foi removida, pois não é mais necessária.
