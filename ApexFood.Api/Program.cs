@@ -27,9 +27,22 @@ try
     var builder = WebApplication.CreateBuilder(args);
 
     // 1. Configuração de Logging (Serilog)
-    builder.Host.UseSerilog((context, services, configuration) => configuration
-        .ReadFrom.Configuration(context.Configuration));
-
+    // Só usar a configuração completa do Serilog (com appsettings, etc.)
+    // se NÃO estivermos no ambiente de testes.
+    if (!builder.Environment.IsEnvironment("Testing"))
+    {
+        builder.Host.UseSerilog((context, services, configuration) =>
+            configuration.ReadFrom.Configuration(context.Configuration)
+                         .ReadFrom.Services(services)
+                         .Enrich.FromLogContext()
+        );
+    }
+    else
+    {
+        // No ambiente de teste, usamos um logger de console simples para evitar conflitos.
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
+    }
     // 2. Registro de Serviços no Container de DI
 
     // --- Serviços de Infraestrutura ---
@@ -80,7 +93,11 @@ try
     // 3. Configuração do Pipeline de Middlewares HTTP
     var app = builder.Build();
 
-    app.UseSerilogRequestLogging();
+    // O middleware de request logging do Serilog também deve ser condicional.
+    if (!app.Environment.IsEnvironment("Testing"))
+    {
+        app.UseSerilogRequestLogging();
+    }
     app.UseHttpsRedirection();
     app.UseAuthentication();
     app.UseAuthorization();
