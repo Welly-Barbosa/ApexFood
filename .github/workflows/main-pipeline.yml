@@ -123,7 +123,12 @@ jobs:
 
     - name: Clean and Update Database
       run: |
-        sudo apt-get update && sudo apt-get install -y mssql-tools unixodbc-dev
+        curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+        sudo curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list -o /etc/apt/sources.list.d/mssql-release.list
+        sudo apt-get update
+        sudo ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
+
+        echo "--> Dropping existing database to ensure a clean slate..."
         /opt/mssql-tools/bin/sqlcmd \
           -S tcp:sql-apexfood-dev.database.windows.net,1433 \
           -d master \
