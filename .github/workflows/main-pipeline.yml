@@ -127,7 +127,7 @@ jobs:
       run: |
         dotnet tool restore
         #dotnet ef database drop --project ApexFood.Persistence --startup-project ApexFood.Api --force
-        dotnet ef database update 0 --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}
+        dotnet ef database update 0 --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
         dotnet ef database update --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
 
     - name: Deploy to App Service
