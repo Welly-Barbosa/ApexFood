@@ -122,8 +122,6 @@ jobs:
             adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
     - name: Clean and Update Database
-      #env:
-      #  ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_DB_CONNECTION_STRING }}
       run: |
         sudo apt-get update && sudo apt-get install -y mssql-tools unixodbc-dev
         /opt/mssql-tools/bin/sqlcmd \
