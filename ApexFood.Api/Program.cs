@@ -51,9 +51,11 @@ try
     builder.Services.AddScoped<ITenantResolver, TenantResolver>();
 
     // --- Serviços de Persistência ---
+    builder.Configuration.AddEnvironmentVariables();
     builder.Services.AddDbContext<ApexFoodDbContext>();
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<ApexFoodDbContext>());
+
 
     // Registra os Repositórios Genérico e Específicos
     builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
