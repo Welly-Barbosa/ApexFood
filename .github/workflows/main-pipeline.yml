@@ -121,13 +121,20 @@ jobs:
             adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}' \
             adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
-    - name: Update Database
-      env:
-        ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_DB_CONNECTION_STRING }}
+    - name: Clean and Update Database
+      #env:
+      #  ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_DB_CONNECTION_STRING }}
       run: |
+        sudo apt-get update && sudo apt-get install -y mssql-tools unixodbc-dev
+        /opt/mssql-tools/bin/sqlcmd \
+          -S tcp:sql-apexfood-dev.database.windows.net,1433 \
+          -d master \
+          -U "${{ secrets.SQL_ADMIN_LOGIN }}" \
+          -P "${{ secrets.SQL_ADMIN_PASSWORD }}" \
+          -Q "DROP DATABASE [sqldb-app-apexfood-dev];" || true
+        sleep 10
+
         dotnet tool restore
-        #dotnet ef database drop --project ApexFood.Persistence --startup-project ApexFood.Api --force
-        dotnet ef database update 0 --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
         dotnet ef database update --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
 
     - name: Deploy to App Service
