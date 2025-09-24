@@ -1,7 +1,4 @@
 // ApexFood.Api.IntegrationTests/MultiTenancyTests.cs
-using System.Net;
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using ApexFood.Application.Common.Interfaces.Authentication;
 using ApexFood.Domain.Entities;
 using ApexFood.Persistence.Data;
@@ -9,6 +6,9 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 
 namespace ApexFood.Api.IntegrationTests;
 
@@ -34,27 +34,26 @@ public class MultiTenancyTests : IClassFixture<IntegrationTestWebAppFactory>
 
         await dbContext.Database.MigrateAsync();
 
-        // 1. Crie e SALVE os tenants PRIMEIRO.
-        var tenantA = new Tenant("Tenant A");
-        var tenantB = new Tenant("Tenant B");
+        // 1. Crie e salve os tenants
+        var tenantA = new Tenant("Tenant A", IntegrationTestWebAppFactory.TestTenantId);
+        var tenantB = new Tenant("Tenant B", Guid.NewGuid());
         dbContext.Tenants.AddRange(tenantA, tenantB);
         await dbContext.SaveChangesAsync();
 
-        // 2. Crie e SALVE o usuário, que depende de um tenant já existente.
+        // 2. Crie e salve o usuário associado ao Tenant A
         var userA = new User { UserName = "usera@test.com", Email = "usera@test.com", TenantId = tenantA.Id };
         var identityResult = await userManager.CreateAsync(userA, "Password123!");
         identityResult.Succeeded.Should().BeTrue();
 
         // ==================================================================
-        // LINHAS CORRIGIDAS: Adicionado o parâmetro 'unidadeMedidaBase'.
+        // PASSO CORRIGIDO: Usando o construtor correto da entidade Insumo
         // ==================================================================
-        var insumoA = new Insumo(tenantA.Id, "Farinha de Trigo", "kg");
-        var insumoB = new Insumo(tenantB.Id, "Ovos", "un");
-
+        var insumoA = new Insumo(tenantA.Id, "Farinha de Trigo", "kg", null, null);
+        var insumoB = new Insumo(tenantB.Id, "Ovos", "un", null, null);
         dbContext.Insumos.AddRange(insumoA, insumoB);
         await dbContext.SaveChangesAsync();
 
-        // 4. Gere o token para o usuário que agora existe no banco.
+        // 4. Gere o token para o usuário do Tenant A
         var token = tokenGenerator.GenerateToken(userA);
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -64,16 +63,14 @@ public class MultiTenancyTests : IClassFixture<IntegrationTestWebAppFactory>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // ATENÇÃO: A resposta da API será uma lista de Insumos. Precisamos de um DTO ou classe para desserializar.
-        // Para este teste, vamos usar um tipo anônimo ou um record simples.
-        var insumos = await response.Content.ReadFromJsonAsync<List<InsumoTestResponse>>();
-
+        var insumos = await response.Content.ReadFromJsonAsync<List<Insumo>>();
         insumos.Should().NotBeNull();
         insumos.Should().ContainSingle();
+
+        // ==================================================================
+        // PASSO CORRIGIDO: Acessando a propriedade correta 'Nome'
+        // ==================================================================
         insumos!.First().Nome.Should().Be(insumoA.Nome);
         insumos!.First().TenantId.Should().Be(tenantA.Id);
     }
-
-    // Classe auxiliar para desserialização da resposta JSON no teste.
-    private record InsumoTestResponse(Guid Id, Guid TenantId, string Nome, string UnidadeMedidaBase, string? Gtin, string? Sku, bool IsAtivo);
 }

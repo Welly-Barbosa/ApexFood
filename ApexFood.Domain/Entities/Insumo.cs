@@ -23,6 +23,7 @@ public class Insumo : Entity, ITenantEntity
         UnidadeMedidaBase = unidadeMedidaBase;
         Gtin = gtin;
         Sku = sku;
+        IsAtivo = true; // Um novo insumo começa como ativo por padrão
     }
 
     public void Desativar() => IsAtivo = false;
