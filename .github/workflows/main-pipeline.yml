@@ -126,8 +126,8 @@ jobs:
         ConnectionStrings__DefaultConnection: ${{ secrets.AZURE_DB_CONNECTION_STRING }}
       run: |
         dotnet tool restore
-        dotnet ef database drop --project ApexFood.Persistence --startup-project ApexFood.Api --force --no-build
-        dotnet ef database update --project ApexFood.Persistence --startup-project ApexFood.Api --no-build
+        dotnet ef database drop --project ApexFood.Persistence --startup-project ApexFood.Api --force
+        dotnet ef database update --project ApexFood.Persistence --startup-project ApexFood.Api
 
     - name: Deploy to App Service
       uses: azure/webapps-deploy@v2
