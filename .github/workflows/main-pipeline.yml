@@ -121,7 +121,9 @@ jobs:
     - name: Update Database
       run: |
         dotnet tool restore
-        #export PATH="$PATH:~/.dotnet/tools"
+        echo "--> Dropping database to ensure a clean slate..."
+        dotnet ef database drop --project ApexFood.Persistence --force --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
+        echo "--> Applying migrations..."
         dotnet ef database update \
           --project ApexFood.Persistence \
           --startup-project ApexFood.Api \
