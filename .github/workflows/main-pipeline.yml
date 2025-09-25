@@ -121,23 +121,10 @@ jobs:
             adAdminLogin='${{ secrets.AD_ADMIN_LOGIN }}' \
             adAdminSid='${{ secrets.AD_ADMIN_SID }}'
 
-    - name: Clean and Update Database
+    - name: Apply Database Migrations
       run: |
-        curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-        sudo curl -sSL https://packages.microsoft.com/config/ubuntu/22.04/prod.list -o /etc/apt/sources.list.d/mssql-release.list
-        sudo apt-get update
-        sudo ACCEPT_EULA=Y apt-get install -y mssql-tools unixodbc-dev
-
-        echo "--> Dropping existing database to ensure a clean slate..."
-        /opt/mssql-tools/bin/sqlcmd \
-          -S tcp:sql-apexfood-dev.database.windows.net,1433 \
-          -d master \
-          -U "${{ secrets.SQL_ADMIN_LOGIN }}" \
-          -P "${{ secrets.SQL_ADMIN_PASSWORD }}" \
-          -Q "DROP DATABASE [sqldb-app-apexfood-dev];" || true
-        sleep 10
-
         dotnet tool restore
+        echo "--> Applying new migrations..."
         dotnet ef database update --project ApexFood.Persistence --connection "${{ secrets.AZURE_DB_CONNECTION_STRING }}"
 
     - name: Deploy to App Service
