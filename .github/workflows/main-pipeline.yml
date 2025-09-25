@@ -14,7 +14,7 @@ env:
 jobs:
   # ==================================================================
   # JOB 1: Apenas constrói, (futuramente) roda testes de unidade e publica o artefato.
-  # ==================================================================
+  # =================================================================
   build_and_publish:  
     name: Build and Publish
     runs-on: ubuntu-latest
