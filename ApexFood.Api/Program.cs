@@ -11,6 +11,7 @@ using ApexFood.Infrastructure.Authentication;
 using ApexFood.Infrastructure.Services;
 using ApexFood.Persistence.Data;
 using ApexFood.Persistence.Repositories;
+using ApexFood.Api.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -25,6 +26,33 @@ Log.Information("Starting up ApexFood.Api");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    // --- INÍCIO DA CONFIGURAÇÃO DO CORS ---
+    var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy(name: MyAllowSpecificOrigins,
+                          policy =>
+                          {
+                              // Permite chamadas vindas do nosso servidor de frontend
+                              policy.WithOrigins("http://localhost:5173")
+                                    .AllowAnyHeader()
+                                    .AllowAnyMethod();
+                          });
+    });
+
+    // Força Kestrel a usar HTTP e HTTPS conforme o launchSettings.json
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenLocalhost(5266); // HTTP
+        options.ListenLocalhost(7086, listenOptions =>
+        {
+            listenOptions.UseHttps(); // HTTPS
+        });
+    });
+
+    // --- FIM DA CONFIGURAÇÃO DO CORS ---
 
     // 1. Configuração de Logging (Serilog)
     // Só usar a configuração completa do Serilog (com appsettings, etc.)
@@ -44,6 +72,15 @@ try
         builder.Logging.AddConsole();
     }
     // 2. Registro de Serviços no Container de DI
+    
+    // Add services to the container.
+    builder.Services.AddControllers();
+
+    // --- ADICIONA OS SERVIÇOS DO SWAGGER ---
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(); // <--- ESTA LINHA É ESSENCIAL
+    builder.Services.AddSingleton<InsumoDataStore>();
 
     // --- Serviços de Infraestrutura ---
     builder.Services.AddHttpContextAccessor();
@@ -94,15 +131,25 @@ try
 
     // 3. Configuração do Pipeline de Middlewares HTTP
     var app = builder.Build();
-
+    
     // O middleware de request logging do Serilog também deve ser condicional.
     if (!app.Environment.IsEnvironment("Testing"))
     {
         app.UseSerilogRequestLogging();
     }
+
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
     app.UseHttpsRedirection();
+    app.UseCors(MyAllowSpecificOrigins);
     app.UseAuthentication();
     app.UseAuthorization();
+    app.MapControllers();
 
     // 4. Mapeamento dos Endpoints
     var authGroup = app.MapGroup("/auth").WithTags("Authentication");
